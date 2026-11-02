@@ -9,12 +9,47 @@ from langchain_community.vectorstores import FAISS
 load_dotenv()
 
 
-def create_vector_store(chunks):
+def get_embeddings():
 
-    embeddings = GoogleGenerativeAIEmbeddings(
+    return GoogleGenerativeAIEmbeddings(
         model="gemini-embedding-001",
         google_api_key=os.getenv("GEMINI_API_KEY")
     )
+
+
+def get_video_db_path(video_id):
+    return os.path.join("vector_db", video_id)
+
+
+def load_vector_store(video_id):
+
+    db_path = get_video_db_path(video_id)
+
+    index_file = os.path.join(db_path, "index.faiss")
+    pickle_file = os.path.join(db_path, "index.pkl")
+
+    if os.path.exists(index_file) and os.path.exists(pickle_file):
+
+        print("Loading existing vector database...")
+
+        embeddings = get_embeddings()
+
+        vector_store = FAISS.load_local(
+            db_path,
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+
+        print("Cached vector database loaded successfully!")
+
+        return vector_store
+
+    return None
+
+
+def create_vector_store(chunks, video_id):
+
+    embeddings = get_embeddings()
 
     batch_size = 20
     vector_store = None
@@ -26,29 +61,33 @@ def create_vector_store(chunks):
         print(f"Processing chunks {i+1} to {i+len(batch)}")
 
         if vector_store is None:
+
             vector_store = FAISS.from_documents(
                 documents=batch,
                 embedding=embeddings
             )
+
         else:
+
             vector_store.add_documents(batch)
 
-        # Wait between batches to reduce rate-limit errors
         if i + batch_size < len(chunks):
             time.sleep(65)
 
-    vector_store.save_local("vector_db")
+    db_path = get_video_db_path(video_id)
 
-    print("Vector database created successfully!")
+    os.makedirs(db_path, exist_ok=True)
+
+    vector_store.save_local(db_path)
+
+    print("Vector database created and saved successfully!")
 
     return vector_store
 
 
 def get_retriever(vector_store):
 
-    retriever = vector_store.as_retriever(
+    return vector_store.as_retriever(
         search_type="similarity",
         search_kwargs={"k": 3}
     )
-
-    return retriever
