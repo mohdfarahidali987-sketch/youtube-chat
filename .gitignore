@@ -1,20 +1,8 @@
-# Virtual environment
-venv/
-env/
-
-# Environment variables
 .env
-
-# Python cache
+venv/
 __pycache__/
 *.pyc
-
-# FAISS database
+*.db
 vector_db/
-
-# IDE files
-.vscode/
-.idea/
-
-# OS files
-.DS_Store
+node_modules/
+extension/dist/

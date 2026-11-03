@@ -1,7 +1,10 @@
 from transcript import load_transcript
 from textSplitter import split_documents
 from vector_store import create_vector_store, get_retriever, load_vector_store
+
 from rag_chian import create_rag_chain
+ 
+
 video_id=input("Enter youtube video id: ").strip()
 vector_store=load_vector_store(video_id)
 if vector_store is None:
@@ -29,10 +32,12 @@ while True:
    context = "\n\n".join(
     doc.page_content for doc in results
   )
+   
 
    response = rag_chain.invoke({
     "context": context,
-    "question": query
+    "question": query,
+
   })
 
    print("\nAI Answer:")

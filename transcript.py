@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 def load_transcript(video_id):
     api = YouTubeTranscriptApi()
 
-    transcript = api.fetch(video_id, languages=["hi"])
+    transcript = api.fetch(video_id, languages=["en"])
 
     text = " ".join(
         snippet.text for snippet in transcript

@@ -1,10 +1,10 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 
 from dotenv import load_dotenv
 import os
-load_dotenv
+load_dotenv()
 parser=StrOutputParser()
 
 
@@ -14,25 +14,30 @@ def create_rag_chain():
         google_api_key=os.getenv("GEMINI_API_KEY"),
         temperature=0.3
         )
-    prompt=PromptTemplate(
-      template="""
-        You are a helpful YouTube video assistant.
+    prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """
+            You are a helpful YouTube video assistant.
 
-        Answer the user's question using only the
-        following video transcript context.
+            Answer the user's question using only the
+            following video transcript context.
 
-        If the answer is not available in the context,
-        clearly say that the video does not provide
-        this information.
+            Use the conversation history to understand
+            follow-up questions and references.
 
-        Context:
-        {context}
+            If the answer is not available in the context,
+            clearly say that the video does not provide
+            this information.
 
-        Question:
-        {question}
+            Video Context:
+            {context}
+            """
+        ),
 
-        Answer:
-        """,
-        input_variables=['context','question']
-   )
+        MessagesPlaceholder(variable_name="chat_history"),
+
+        ("human", "{question}")
+    ])
+
     return prompt|llm|parser

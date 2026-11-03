@@ -12,6 +12,8 @@ from vector_store import (
     load_vector_store
 )
 from rag_chian import create_rag_chain
+ 
+from database import create_conversation, save_message, get_chat_history, get_conversation
 
 
 app = FastAPI(title="YouTube AI Assistant API")
@@ -30,10 +32,12 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     video_id: str
     question: str
+    conversation_id: str | None = None
 
 
 class ChatResponse(BaseModel):
     answer: str
+    conversation_id: str
 
 
 @app.get("/")
@@ -71,6 +75,24 @@ def chat(request: ChatRequest):
         )
 
     try:
+        if request.conversation_id is None:
+            conversation_id=create_conversation(video_id)
+        else:
+            conversation_id=request.conversation_id
+            conversation=get_conversation(conversation_id)
+            if conversation is None:
+             raise HTTPException(
+            status_code=404,
+            detail="Conversation not found"
+        )
+
+            if conversation["video_id"] != video_id:
+             raise HTTPException(
+            status_code=400,
+            detail="Conversation does not belong to this video"
+        )
+        chat_history=get_chat_history(conversation_id)
+        save_message(conversation_id,'human',question)        
         # 1. Check existing FAISS database
         vector_store = load_vector_store(video_id)
 
@@ -97,10 +119,13 @@ def chat(request: ChatRequest):
         retriever = get_retriever(vector_store)
         results = retriever.invoke(question)
 
-        if not results:
-            return ChatResponse(
+        if not results:  
                 answer="No relevant information found in this video."
-            )
+                save_message(conversation_id, 'ai',answer)
+                return ChatResponse(
+                    answer=answer,
+                    conversation_id=conversation_id
+                )
 
         context = "\n\n".join(
             doc.page_content for doc in results
@@ -111,7 +136,9 @@ def chat(request: ChatRequest):
 
         response = rag_chain.invoke({
             "context": context,
-            "question": question
+            "question": question,
+            "chat_history": chat_history
+            
         })
 
         answer = (
@@ -127,8 +154,10 @@ def chat(request: ChatRequest):
                 for item in answer
                 if isinstance(item, dict)
             )
+        answer=str(answer)
+        save_message(conversation_id, 'ai', answer)    
 
-        return ChatResponse(answer=str(answer))
+        return ChatResponse(answer=answer,conversation_id=conversation_id)
 
     except HTTPException:
         raise
